@@ -1,8 +1,11 @@
 import com.fazecast.jSerialComm.SerialPort
+import kotlinx.coroutines.withTimeoutOrNull
+import me.gavin.obdlayer.OBD2Connection
 
 val portCache = ArrayList<SerialPort>()
+var connection: OBD2Connection? = null
 
-fun main(args: Array<String>) {
+suspend fun main(args: Array<String>) {
     var running = true
     println("==== obd-kt test CLI ====")
     while (running) {
@@ -16,26 +19,77 @@ fun main(args: Array<String>) {
         println()
         when (input) {
             1 -> listPorts()
-            2 -> continue // nothing yet
+            2 -> connectToPort()
             3 -> { running = false; println("Quitting...") }
             else -> println("Invalid option entered.")
         }
     }
 }
 
-private fun listPorts() {
+fun listPorts() {
     println("Checking ports.")
-    val ports = SerialPort.getCommPorts()
-
-    // refresh the "cached" ports
-    portCache.clear()
-
-    if (ports.isEmpty()) {
+    scanPorts()
+    if (portCache.isEmpty()) {
         println("No port connections found.")
     } else {
-        ports.forEachIndexed { index, serialPort ->
+        portCache.forEachIndexed { index, serialPort ->
             println("Port [$index]: ${serialPort.systemPortName} - ${serialPort.descriptivePortName}")
-            portCache.add(serialPort)
         }
     }
+}
+
+fun scanPorts() {
+    val ports = SerialPort.getCommPorts()
+    portCache.clear()
+    ports.forEach { port ->
+        portCache.add(port)
+    }
+}
+
+suspend fun connectToPort() {
+    print("Enter the port index for which to connect: ")
+    val portIndex: Int? = readln().toIntOrNull()
+
+    if (portIndex == null) {
+        println("Please try again and enter a valid number.")
+        return
+    }
+    // scan again for ports in case we haven't already
+    scanPorts()
+
+    if (portCache.isEmpty()) {
+        println("No connected ports found! Try checking device connection.")
+        return
+    }
+
+    if (portIndex > portCache.size - 1 || portIndex < 0) {
+        println("Provided index is out of range.")
+        return
+    }
+
+    connection = OBD2Connection(portCache[portIndex])
+    val result = connection!!.connect(115200)
+
+
+    handleInputLoop()
+}
+
+suspend fun handleInputLoop() {
+    println("ELM327 Connection Established, enter a commands to send. Type STOP to stop")
+    while (true) {
+        print("CMD > ")
+        val input = readln()
+
+        if (input == "STOP") {
+            break
+        }
+
+        connection!!.trySend(input.replace("\n", ""))
+
+        val response = withTimeoutOrNull(5000) {
+            connection!!.getResponseChannel().receive()
+        }
+    }
+
+    connection!!.closeConnection()
 }

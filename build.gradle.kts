@@ -14,6 +14,7 @@ dependencies {
 
     // Our serialization library, so we can talk to the obd2 adapter over USB
     implementation("com.fazecast:jSerialComm:[2.0.0,3.0.0)")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 }
 
 tasks.test {

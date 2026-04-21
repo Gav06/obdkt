@@ -70,8 +70,7 @@ suspend fun connectToPort() {
     connection = OBD2Connection(portCache[portIndex])
     val result = connection!!.connect(115200)
 
-
-    handleInputLoop()
+    if (result) handleInputLoop() else connection!!.closeConnection()
 }
 
 suspend fun handleInputLoop() {

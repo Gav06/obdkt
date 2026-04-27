@@ -5,7 +5,7 @@ import me.gavin.obdlayer.OBD2Connection
 val portCache = ArrayList<SerialPort>()
 var connection: OBD2Connection? = null
 
-suspend fun main(args: Array<String>) {
+suspend fun main() {
     var running = true
     println("==== obd-kt test CLI ====")
     while (running) {
@@ -70,7 +70,8 @@ suspend fun connectToPort() {
     connection = OBD2Connection(portCache[portIndex])
     val result = connection!!.connect(115200)
 
-    if (result) handleInputLoop()
+
+    if (result) handleInputLoop() else connection!!.closeConnection()
 }
 
 suspend fun handleInputLoop() {

@@ -11,15 +11,13 @@ typealias ELMData = String
 class OBD2Connection(private val port: SerialPort) {
 
     private var isConnected = false
-
     fun isConnected(): Boolean = isConnected
 
-    // OBDData is a wrapper for string, just so it's clear
-    // what is meant to be sent over the pipeline.
     private val requestChannel = Channel<ELMData>(Channel.UNLIMITED)
     private val responseChannel = Channel<ELMData>(Channel.UNLIMITED)
 
     fun getRequestChannel(): Channel<ELMData> = requestChannel
+
     fun getResponseChannel(): Channel<ELMData> = responseChannel
 
     private val connectionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -27,23 +25,22 @@ class OBD2Connection(private val port: SerialPort) {
     suspend fun connect(baudRate: Int = 38400): Boolean {
         try {
             if (!port.openPort()) {
-                return false;
+                return false
             }
-
             // setup port settings
             port.setComPortParameters(baudRate, 8, 1, SerialPort.NO_PARITY)
             port.setComPortTimeouts(SerialPort.TIMEOUT_READ_BLOCKING, 1000, 0)
             port.setFlowControl(SerialPort.FLOW_CONTROL_DISABLED)
-
             // init ELM327
             if (!initELM327()) {
                 println("ELM327 Initialization failed.")
-                return false;
+                return false
             }
 
             isConnected = true
             connectionScope.launch { communicationLoop() }
             connectionScope.launch { queryManager() }
+
             return true
 
         } catch (e: Exception) {
@@ -54,9 +51,8 @@ class OBD2Connection(private val port: SerialPort) {
         }
     }
 
-    // We avoid using our async channels for init, because init needs to be synchronous.
+// We avoid using our async channels for init, because init needs to be synchronous.
     private suspend fun initELM327(): Boolean {
-        // thanks claude for helping so much :-)
         val initCmds = listOf(
             "ATZ" to { it: String -> it.contains("ELM327") && it.contains(">")}, // reset ELM327
             "ATE0" to { it: String -> it.contains("OK")}, // turn off echo
@@ -78,8 +74,7 @@ class OBD2Connection(private val port: SerialPort) {
                 return false
             }
 
-
-            println("OUT: $response")
+            println("OUTPUT <- $cmd: $response")
         }
 
         return true
@@ -95,25 +90,22 @@ class OBD2Connection(private val port: SerialPort) {
                 // handle responses
                 onTimeout(10) {
                     val response: ELMData? = readResponse()
-
-                    response?.let {
-                        responseChannel.send(it)
-                    }
+                    response?.let { responseChannel.send(it) }
                 }
             }
         }
     }
 
-    // this function assumes that bytes are available.
+// this function assumes that bytes are available.
     private fun readResponse(): ELMData? {
         val bytesAvail = port.bytesAvailable()
         if (bytesAvail > 0) {
             val bytes = ByteArray(port.bytesAvailable())
             port.readBytes(bytes, bytes.size)
-            val byteStr = bytes.joinToString(" ") { "%02X".format(it) }
+//            val byteStr = bytes.joinToString(" ") { "%02X".format(it) }
             val asciiStr = bytesToAscii(bytes)
             val data = makeVisible(asciiStr)
-            println("Response: $asciiStr")
+
             return data
         }
 
@@ -121,20 +113,18 @@ class OBD2Connection(private val port: SerialPort) {
     }
 
     private fun writeRequest(obdRequest: ELMData) {
-        // add carriage return, to mark end of request
-        val cleanCmd = obdRequest.trim() + "\r"
-        val requestBytes = cleanCmd.toByteArray(Charsets.US_ASCII)
+// add carriage return, to mark end of request
+        println("INPUT -> $obdRequest")
+        val requestBytes = obdRequest.plus("\r").toByteArray(Charsets.US_ASCII)
         port.writeBytes(requestBytes, requestBytes.size)
     }
 
-    // processing unique queries, as well as the frequent
-    // "callback" queries, like for engine RPM
-    private suspend fun queryManager() {
-        // right now we just print responses
-
+// processing unique queries, as well as the frequent
+// "callback" queries, like for engine RPM
+    private fun queryManager() {
+// right now we just print responses
         val response = responseChannel.tryReceive().getOrNull()
-
-        println("OUT: $response")
+        println("OUTPUT <- $response")
     }
 
     private fun bytesToAscii(bytes: ByteArray): String {
@@ -142,7 +132,6 @@ class OBD2Connection(private val port: SerialPort) {
         for ( i in bytes.indices) {
             sb.append(bytes[i].toInt().toChar())
         }
-
         return sb.toString()
     }
 
@@ -154,20 +143,14 @@ class OBD2Connection(private val port: SerialPort) {
             .replace(Regex("[\u0000-\u001f]")) { "\\x%02X".format(it.value[0].code) }
     }
 
-    // the public method to enqueue a request via async channels
+// the public method to enqueue a request via async channels
     fun trySend(request: ELMData): Boolean {
         return requestChannel.trySend(request).isSuccess
     }
 
-    fun tryGetResponse(): ELMData? {
-        return responseChannel.tryReceive().getOrNull()
-    }
-
     fun closeConnection() {
         isConnected = false
-
         connectionScope.cancel()
-
         requestChannel.close()
         responseChannel.close()
 

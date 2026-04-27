@@ -79,7 +79,7 @@ class OBD2Connection(private val port: SerialPort) {
             }
 
 
-            println("OUTPUT <- $cmd: $response")
+            println("OUT: $response")
         }
 
         return true
@@ -111,7 +111,9 @@ class OBD2Connection(private val port: SerialPort) {
             val bytes = ByteArray(port.bytesAvailable())
             port.readBytes(bytes, bytes.size)
             val byteStr = bytes.joinToString(" ") { "%02X".format(it) }
-            val data = makeVisible(String(bytes, Charsets.US_ASCII))
+            val asciiStr = bytesToAscii(bytes)
+            val data = makeVisible(asciiStr)
+            println("Response: $asciiStr")
             return data
         }
 
@@ -120,8 +122,8 @@ class OBD2Connection(private val port: SerialPort) {
 
     private fun writeRequest(obdRequest: ELMData) {
         // add carriage return, to mark end of request
-        println("INPUT -> $obdRequest")
-        val requestBytes = obdRequest.plus("\r").toByteArray(Charsets.US_ASCII)
+        val cleanCmd = obdRequest.trim() + "\r"
+        val requestBytes = cleanCmd.toByteArray(Charsets.US_ASCII)
         port.writeBytes(requestBytes, requestBytes.size)
     }
 
@@ -130,9 +132,18 @@ class OBD2Connection(private val port: SerialPort) {
     private suspend fun queryManager() {
         // right now we just print responses
 
-        val response = responseChannel.receive()
+        val response = responseChannel.tryReceive().getOrNull()
 
-        println("OUTPUT <- $response")
+        println("OUT: $response")
+    }
+
+    private fun bytesToAscii(bytes: ByteArray): String {
+        val sb = StringBuilder(bytes.size * 2)
+        for ( i in bytes.indices) {
+            sb.append(bytes[i].toInt().toChar())
+        }
+
+        return sb.toString()
     }
 
     private fun makeVisible(str: String): String {

@@ -70,14 +70,12 @@ suspend fun connectToPort() {
     connection = OBD2Connection(portCache[portIndex])
     val result = connection!!.connect(115200)
 
-
-    handleInputLoop()
+    if (result) handleInputLoop()
 }
 
 suspend fun handleInputLoop() {
     println("ELM327 Connection Established, enter a commands to send. Type STOP to stop")
     while (true) {
-        print("CMD > ")
         val input = readln()
 
         if (input == "STOP") {
@@ -90,6 +88,5 @@ suspend fun handleInputLoop() {
             connection!!.getResponseChannel().receive()
         }
     }
-
     connection!!.closeConnection()
 }

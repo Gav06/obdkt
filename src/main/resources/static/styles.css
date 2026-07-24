@@ -1,0 +1,11 @@
+
+/* Connection status indicator colors */
+
+.status-offline {
+    color: #e22
+}
+
+.status-online {
+    color: #2e2
+}
+

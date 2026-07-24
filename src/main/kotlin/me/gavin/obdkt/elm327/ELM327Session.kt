@@ -48,11 +48,11 @@ internal class ELM327Session(private val port: SerialPort) {
     // bytes arrived during that window.
     suspend fun init(): Boolean {
         val initSequence = listOf(
-            "ATZ"   to Pair(2000L, { r: String -> "ELM327" in r }),
-            "ATE0"  to Pair(200L,  { r: String -> "OK" in r }),
-            "ATL0"  to Pair(200L,  { r: String -> "OK" in r }),
-            "ATS0"  to Pair(200L,  { r: String -> "OK" in r }),
-            "ATSP0" to Pair(200L,  { r: String -> "OK" in r }),
+            "ATZ"   to Pair(2000L) { r: String -> "ELM327" in r },
+            "ATE0"  to Pair(200L) { r: String -> "OK" in r },
+            "ATL0"  to Pair(200L) { r: String -> "OK" in r },
+            "ATS0"  to Pair(200L) { r: String -> "OK" in r },
+            "ATSP0" to Pair(200L) { r: String -> "OK" in r },
         )
         for ((cmd, pair) in initSequence) {
             val (delayMs, validate) = pair

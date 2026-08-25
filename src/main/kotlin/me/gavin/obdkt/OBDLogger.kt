@@ -12,7 +12,7 @@ object OBDLogger : Logger by initLoggerBoilerplate()
 // i'm not really sure why we need to do all this for a logger
 // but it's my first time really using log4j on my own project so...
 private fun initLoggerBoilerplate(): Logger {
-    // create configbuilder
+    // create config builder
     val builder = ConfigurationBuilderFactory.newConfigurationBuilder()
     // define appender for stdout
     val appender = builder.newAppender("Stdout", "Console").addAttribute("target", "SYSTEM_OUT")

@@ -28,8 +28,7 @@ fun main(args: Array<String>) {
             masking = false
         }
         routing {
-            staticResources("/", "static") // serves from src/main/resources/static, index.html by default at "/"
-
+            staticResources("/", "static") // serves from src/main/resources/static, index.html by default 
             webSocket("/obd") {
                 if (!isHardwareConnected.compareAndSet(false, true)) {
                     close(CloseReason(
